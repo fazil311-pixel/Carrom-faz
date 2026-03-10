@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Carrom-faz: Pro Impact</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <style>
+        body { margin: 0; background: #0a0a0a; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; touch-action: none; }
+        #scoreboard { display: flex; justify-content: space-around; width: 90%; background: #1a1a1a; padding: 15px; border-radius: 12px; margin-bottom: 10px; color: #ffca28; border: 1px solid #333; font-family: sans-serif; }
+        #board-container { position: relative; width: 94vw; height: 94vw; max-width: 500px; background: #3e2723; border: 15px solid #2b1d14; border-radius: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.9); }
+        #surface { width: 100%; height: 100%; position: relative; background: radial-gradient(circle, #f5e0b7 10%, #d4b483 100%); }
+        .pocket { position: absolute; width: 14%; height: 14%; background: #000; border-radius: 50%; }
+        .tl { top: 0; left: 0; } .tr { top: 0; right: 0; } .bl { bottom: 0; left: 0; } .br { bottom: 0; right: 0; }
+        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; }
+        #ui { width: 90%; margin-top: 25px; }
+        input[type=range] { width: 100%; height: 25px; accent-color: #ffca28; appearance: none; background: #222; border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+    <div id="scoreboard">
+        <div>WHITE: <span id="whiteScore">0</span></div>
+        <div>BLACK: <span id="blackScore">0</span></div>
+        <div>QUEEN: <span id="queenScore">0</span></div>
+    </div>
+
+    <div id="board-container">
+        <div id="surface">
+            <div class="pocket tl"></div><div class="pocket tr"></div>
+            <div class="pocket bl"></div><div class="pocket br"></div>
+            <canvas id="carromCanvas"></canvas>
+        </div>
+    </div>
+
+    <div id="ui"><input type="range" id="strikerSlider" min="80" max="520" value="300"></div>
+
+    <script>
+        const { Engine, Render, Runner, Bodies, Composite, Vector, Events, Body } = Matter;
+        const engine = Engine.create();
+        
+        // This stops "ghosting" by checking positions 60 times per frame
+        engine.positionIterations = 60;
+        engine.velocityIterations = 60;
+
+        const canvas = document.getElementById('carromCanvas');
+        const ctx = canvas.getContext('2d');
+        const render = Render.create({ canvas, engine, options: { width: 600, height: 600, wireframes: false, background: 'transparent' } });
+
+        // Heavy Striker so it has real impact
+        const striker = Bodies.circle(300, 485, 32, { 
+            label: 'striker', frictionAir: 0.045, restitution: 0.5, density: 0.8,
+            render: { fillStyle: '#4a148c', strokeStyle: '#ffca28', lineWidth: 5 } 
+        });
+
+        const coins = [];
+        coins.push(Bodies.circle(300, 300, 22, { label: 'queen', render: { fillStyle: '#d32f2f' } }));
+        for(let i=0; i<6; i++) {
+            const a = (i * 60) * (Math.PI / 180);
+            coins.push(Bodies.circle(300 + Math.cos(a)*45, 300 + Math.sin(a)*45, 22, { label: i%2===0 ? 'white' : 'black', render: { fillStyle: i%2===0 ? '#fff' : '#222' } }));
+        }
+
+        const pocketLocs = [{x:35,y:35},{x:565,y:35},{x:35,y:565},{x:565,y:565}];
+        Composite.add(engine.world, [striker, ...coins]);
+
+        let canShoot = true, startPos = null, currentTouch = null;
+        const slider = document.getElementById('strikerSlider');
+
+        slider.oninput = () => { if(canShoot) Body.setPosition(striker, { x: parseInt(slider.value), y: 485 }); };
+        
+        canvas.ontouchstart = (e) => {
+            if(!canShoot) return;
+            const rect = canvas.getBoundingClientRect();
+            startPos = { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+        };
+
+        canvas.ontouchmove = (e) => {
+            if(!startPos) return;
+            const rect = canvas.getBoundingClientRect();
+            currentTouch = { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+        };
+        
+        window.ontouchend = () => {
+            if(canShoot && startPos && currentTouch) {
+                const force = Vector.mult(Vector.sub(startPos, currentTouch), 0.012);
+                Body.applyForce(striker, striker.position, force);
+                canShoot = false;
+            }
+            startPos = null; currentTouch = null;
+        };
+
+        Events.on(engine, 'afterUpdate', () => {
+            coins.forEach((c, i) => {
+                pocketLocs.forEach(p => {
+                    if (Vector.magnitude(Vector.sub(c.position, p)) < 40) {
+                        document.getElementById(c.label + 'Score').innerText = parseInt(document.getElementById(c.label + 'Score').innerText) + 1;
+                        Composite.remove(engine.world, c);
+                        coins.splice(i, 1);
+                    }
+                });
+            });
+
+            if (!canShoot && striker.speed < 0.2 && coins.every(c => c.speed < 0.2)) {
+                Body.setPosition(striker, { x: parseInt(slider.value), y: 485 });
+                Body.setVelocity(striker, { x: 0, y: 0 });
+                canShoot = true;
+            }
+        });
+
+        Runner.run(Runner.create(), engine);
+        Render.run(render);
+    </script>
+</body>
+</html>
