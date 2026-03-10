@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Carrom Board UI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background: radial-gradient(circle at top, #333 0, #000 60%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: system-ui, sans-serif;
+    }
+
+    .board-wrapper {
+      padding: 20px;
+      background: #111;
+      border-radius: 24px;
+      box-shadow: 0 0 40px rgba(0,0,0,0.8);
+    }
+
+    .board {
+      width: 520px;
+      height: 520px;
+      background: #f3d3a1;
+      border-radius: 24px;
+      position: relative;
+      box-shadow: inset 0 0 0 14px #b56a3b,
+                  inset 0 0 0 22px #fef4e6,
+                  inset 0 0 0 30px #b56a3b;
+      overflow: hidden;
+    }
+
+    /* Pockets */
+    .pocket {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: #000;
+      position: absolute;
+      box-shadow: 0 0 10px rgba(0,0,0,0.7);
+    }
+    .pocket.tl { top: -23px; left: -23px; }
+    .pocket.tr { top: -23px; right: -23px; }
+    .pocket.bl { bottom: -23px; left: -23px; }
+    .pocket.br { bottom: -23px; right: -23px; }
+
+    /* Center circle */
+    .center-circle {
+      position: absolute;
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      border: 3px solid #b54a3b;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    /* Coins */
+    .coin {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+    .coin.white {
+      background: #fdfdfd;
+      border: 2px solid #555;
+    }
+    .coin.black {
+      background: #111;
+      border: 2px solid #eee;
+    }
+    .coin.red {
+      background: #c0182b;
+      border: 2px solid #5a000a;
+    }
+
+    /* Arrange coins roughly like a carrom setup */
+    .c1 { transform: translate(-50%, -50%) translate(0, 0); }
+    .c2 { transform: translate(-50%, -50%) translate(-18px, -10px); }
+    .c3 { transform: translate(-50%, -50%) translate(18px, -10px); }
+    .c4 { transform: translate(-50%, -50%) translate(-18px, 10px); }
+    .c5 { transform: translate(-50%, -50%) translate(18px, 10px); }
+    .c6 { transform: translate(-50%, -50%) translate(0, -22px); }
+    .c7 { transform: translate(-50%, -50%) translate(0, 22px); }
+    .c8 { transform: translate(-50%, -50%) translate(-32px, 0); }
+    .c9 { transform: translate(-50%, -50%) translate(32px, 0); }
+    .c10 { transform: translate(-50%, -50%) translate(-32px, -22px); }
+    .c11 { transform: translate(-50%, -50%) translate(32px, -22px); }
+    .c12 { transform: translate(-50%, -50%) translate(-32px, 22px); }
+    .c13 { transform: translate(-50%, -50%) translate(32px, 22px); }
+
+    /* Striker on the right with glow */
+    .striker {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      position: absolute;
+      top: 50%;
+      right: 70px;
+      transform: translateY(-50%);
+      background: radial-gradient(circle at 30% 30%, #ffb6ff 0, #7b2cff 40%, #2b004f 100%);
+      border: 3px solid #fefefe;
+      box-shadow:
+        0 0 0 6px rgba(255, 140, 0, 0.4),
+        0 0 18px rgba(255, 140, 0, 0.9),
+        0 0 30px rgba(255, 255, 255, 0.6);
+    }
+
+    .striker-ring {
+      position: absolute;
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      border: 3px solid rgba(255, 140, 0, 0.7);
+      top: 50%;
+      right: 50px;
+      transform: translateY(-50%);
+      box-shadow: 0 0 20px rgba(255, 140, 0, 0.9);
+    }
+  </style>
+</head>
+<body>
+  <div class="board-wrapper">
+    <div class="board">
+      <!-- Pockets -->
+      <div class="pocket tl"></div>
+      <div class="pocket tr"></div>
+      <div class="pocket bl"></div>
+      <div class="pocket br"></div>
+
+      <!-- Center circle -->
+      <div class="center-circle">
+        <!-- Queen -->
+        <div class="coin red c1"></div>
+
+        <!-- White coins -->
+        <div class="coin white c2"></div>
+        <div class="coin white c3"></div>
+        <div class="coin white c4"></div>
+        <div class="coin white c5"></div>
+        <div class="coin white c6"></div>
+        <div class="coin white c7"></div>
+
+        <!-- Black coins -->
+        <div class="coin black c8"></div>
+        <div class="coin black c9"></div>
+        <div class="coin black c10"></div>
+        <div class="coin black c11"></div>
+        <div class="coin black c12"></div>
+        <div class="coin black c13"></div>
+      </div>
+
+      <!-- Striker + glow ring -->
+      <div class="striker-ring"></div>
+      <div class="striker"></div>
+    </div>
+  </div>
+</body>
+</html>
