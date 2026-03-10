@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Fazil Carrom Master 3D</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <style>
+        body { margin: 0; background: #0e0e0e; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; touch-action: none; font-family: sans-serif; }
+        
+        /* 3D Wood Board with Frame Depth */
+        #frame { 
+            position: relative; width: 92vw; height: 92vw; max-width: 500px; max-height: 500px;
+            background: #2b1d14; border: 18px solid #3e2723; border-radius: 20px;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.8), inset 0 0 50px rgba(0,0,0,0.6);
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        #surface {
+            width: 100%; height: 100%; position: relative;
+            background: radial-gradient(circle, #e3c192 0%, #c19a6b 100%);
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.3);
+        }
+
+        /* Official Markings */
+        .marking { position: absolute; border: 1.5px solid rgba(0,0,0,0.4); border-radius: 50%; pointer-events: none; }
+        .center-circle { width: 6.4%; height: 6.4%; top: 46.8%; left: 46.8%; background: rgba(213,0,0,0.5); border: 2px solid #000; }
+        .outer-ring { width: 34%; height: 34%; top: 33%; left: 33%; border: 1.5px solid rgba(0,0,0,0.3); }
+
+        /* Corner Pockets */
+        .pocket { position: absolute; width: 13.5%; height: 13.5%; background: #000; border-radius: 50%; box-shadow: inset 0 8px 10px rgba(255,255,255,0.1); }
+        .tl { top: 1%; left: 1%; } .tr { top: 1%; right: 1%; }
+        .bl { bottom: 1%; left: 1%; } .br { bottom: 1%; right: 1%; }
+
+        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; }
+
+        /* Power & Control */
+        #ui { width: 85%; margin-top: 30px; text-align: center; }
+        #power-meter { width: 100%; height: 10px; background: #222; border-radius: 5px; margin-bottom: 15px; overflow: hidden; border: 1px solid #444; }
+        #power-fill { width: 0%; height: 100%; background: linear-gradient(90deg, #ffeb3b, #f44336); transition: width 0.05s; }
+        input[type=range] { width: 100%; height: 40px; accent-color: #c19a6b; }
+        #status { color: #c19a6b; font-size: 14px; font-weight: bold; text-transform: uppercase; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div id="frame">
+        <div id="surface">
+            <div class="marking outer-ring"></div>
+            <div class="marking center-circle"></div>
+            <div class="pocket tl"></div><div class="pocket tr"></div>
+            <div class="pocket bl"></div><div class="pocket br"></div>
+            <canvas id="carromCanvas"></canvas>
+        </div>
+    </div>
+
+    <div id="ui">
+        <div id="power-meter"><div id="power-fill"></div></div>
+        <input type="range" id="slider" min="75" max="525" value="300">
+        <div id="status">Ready to Shoot</div>
+    </div>
+
+    <script>
+        const { Engine, Render, Runner, Bodies, Composite, Vector, Events } = Matter;
+        const engine = Engine.create(); engine.gravity.y = 0;
+        const canvas = document.getElementById('carromCanvas');
+
+        const render = Render.create({
+            canvas: canvas, engine: engine,
+            options: { width: 600, height: 600, wireframes: false, background: 'transparent' }
+        });
+
+        // 1. Striker (Official Pro Look)
+        const striker = Bodies.circle(300, 485, 27, { 
+            label: 'striker', frictionAir: 0.05, restitution: 0.6,
+            render: { fillStyle: '#4a148c', strokeStyle: '#ffd700', lineWidth: 4 } 
+        });
+
+        // 2. Official 19-Coin Hexagonal Setup
+        const coins = [];
+        const WHITE = '#ffffff', BLACK = '#222222', QUEEN = '#d50000';
+        
+        // Queen in Middle
+        coins.push(Bodies.circle(300, 300, 20, { label: 'queen', render: { fillStyle: QUEEN, strokeStyle: '#000', lineWidth: 2 } }));
+        
+        // Inner Circle (6)
+        for(let i=0; i<6; i++){
+            const angle = (i * 60) * (Math.PI / 180);
+            coins.push(Bodies.circle(300 + Math.cos(angle)*42, 300 + Math.sin(angle)*42, 20, {
+                render: { fillStyle: i%2===0 ? WHITE : BLACK, strokeStyle: '#000', lineWidth: 1 }
+            }));
+        }
+
+        // Outer Circle (12)
+        for(let i=0; i<12; i++){
+            const angle = (i * 30) * (Math.PI / 180);
+            let color = (i===0 || i===1 || i===4 || i===5 || i===8 || i===9) ? BLACK : WHITE;
+            coins.push(Bodies.circle(300 + Math.cos(angle)*84, 300 + Math.sin(angle)*84, 20, {
+                render: { fillStyle: color, strokeStyle: '#000', lineWidth: 1 }
+            }));
+        }
+
+        const pockets = [
+            {x:45, y:45}, {x:555, y:45}, {x:45, y:555}, {x:555, y:555}
+        ].map(p => Bodies.circle(p.x, p.y, 35, { isStatic: true, isSensor: true, render: { visible: false } }));
+
+        Composite.add(engine.world, [striker, ...coins, ...pockets]);
+
+        // Controls & Rules
+        let canShoot = true, startY = 0, needsToCoverQueen = false;
+        const slider = document.getElementById('slider');
+        const powerFill = document.getElementById('power-fill');
+        const statusText = document.getElementById('status');
+
+        slider.oninput = () => { if(canShoot) Matter.Body.setPosition(striker, { x: parseInt(slider.value), y: 485 }); };
+
+        window.ontouchstart = (e) => { if(canShoot) startY = e.touches[0].clientY; };
+        window.ontouchmove = (e) => {
+            if(canShoot) powerFill.style.width = Math.min((e.touches[0].clientY - startY)/2, 100) + '%';
+        };
+        window.ontouchend = (e) => {
+            if(canShoot) {
+                let force = (e.changedTouches[0].clientY - startY) * 0.001;
+                if(force > 0.01) {
+                    Matter.Body.applyForce(striker, striker.position, { x: 0, y: -force });
+                    canShoot = false; powerFill.style.width = '0%';
+                    statusText.innerText = "Wait...";
+                }
+            }
+        };
+
+        Events.on(engine, 'afterUpdate', () => {
+            let pocketedInThisTurn = false;
+            
+            coins.forEach((c, i) => {
+                pockets.forEach(p => {
+                    if (Vector.magnitude(Vector.sub(c.position, p.position)) < 35) {
+                        if (c.label === 'queen') {
+                            needsToCoverQueen = true;
+                            statusText.innerText = "QUEEN! MUST COVER!";
+                        } else {
+                            if(needsToCoverQueen) {
+                                needsToCoverQueen = false;
+                                statusText.innerText = "QUEEN COVERED!";
+                            }
+                        }
+                        Composite.remove(engine.world, c);
+                        coins.splice(i, 1);
+                        pocketedInThisTurn = true;
+                    }
+                });
+            });
+
+            const isMoving = Composite.allBodies(engine.world).some(b => b.speed > 0.15);
+            if (!canShoot && !isMoving) {
+                if(needsToCoverQueen && !pocketedInThisTurn) {
+                    // Queen not covered, reset Queen to center (Official Rule)
+                    const queen = Bodies.circle(300, 300, 20, { label: 'queen', render: { fillStyle: QUEEN, strokeStyle: '#000', lineWidth: 2 } });
+                    coins.push(queen);
+                    Composite.add(engine.world, queen);
+                    needsToCoverQueen = false;
+                    statusText.innerText = "FAILED TO COVER QUEEN";
+                } else if (!needsToCoverQueen) {
+                    statusText.innerText = "Ready to Shoot";
+                }
+                
+                Matter.Body.setPosition(striker, { x: parseInt(slider.value), y: 485 });
+                Matter.Body.setVelocity(striker, { x: 0, y: 0 });
+                canShoot = true;
+            }
+        });
+
+        Render.run(render); Runner.run(Runner.create(), engine);
+    </script>
+</body>
+</html>
