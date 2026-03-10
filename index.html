@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Carrom Board Clone</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
+
+  /* Outer frame */
+  .frame {
+    padding: 22px;
+    background: #141414;
+    border-radius: 28px;
+    box-shadow: 0 0 40px rgba(0,0,0,0.9);
+  }
+
+  /* Main board */
+  .board {
+    width: 540px;
+    height: 540px;
+    background: #f5d7a1;
+    border-radius: 26px;
+    position: relative;
+    box-shadow:
+      inset 0 0 0 12px #b55a3b,
+      inset 0 0 0 22px #ffffff,
+      inset 0 0 0 32px #b55a3b;
+    overflow: hidden;
+  }
+
+  /* Pockets */
+  .pocket {
+    width: 48px;
+    height: 48px;
+    background: #000;
+    border-radius: 50%;
+    position: absolute;
+  }
+  .tl { top: -24px; left: -24px; }
+  .tr { top: -24px; right: -24px; }
+  .bl { bottom: -24px; left: -24px; }
+  .br { bottom: -24px; right: -24px; }
+
+  /* Center lines */
+  .line-h, .line-v {
+    position: absolute;
+    background: rgba(180, 60, 40, 0.7);
+  }
+  .line-h { height: 2px; width: 70%; left: 15%; top: 50%; }
+  .line-v { width: 2px; height: 70%; top: 15%; left: 50%; }
+
+  /* Circle marks */
+  .mark {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid rgba(180,60,40,0.7);
+  }
+  .mark.top    { top: 22%; left: 50%; transform: translateX(-50%); }
+  .mark.bottom { bottom: 22%; left: 50%; transform: translateX(-50%); }
+  .mark.left   { left: 22%; top: 50%; transform: translateY(-50%); }
+  .mark.right  { right: 22%; top: 50%; transform: translateY(-50%); }
+
+  /* Center circle */
+  .center {
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    border: 4px solid #b54a3b;
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  /* Coins */
+  .coin {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.6);
+  }
+  .white { background: #ffffff; border: 2px solid #555; }
+  .black { background: #111111; border: 2px solid #eeeeee; }
+  .red   { background: #c0182b; border: 2px solid #5a000a; }
+
+  /* Coin positions */
+  .c1  { transform: translate(-50%, -50%) translate(0,0); }
+  .c2  { transform: translate(-50%, -50%) translate(-20px,-12px); }
+  .c3  { transform: translate(-50%, -50%) translate(20px,-12px); }
+  .c4  { transform: translate(-50%, -50%) translate(-20px,12px); }
+  .c5  { transform: translate(-50%, -50%) translate(20px,12px); }
+  .c6  { transform: translate(-50%, -50%) translate(0,-26px); }
+  .c7  { transform: translate(-50%, -50%) translate(0,26px); }
+  .c8  { transform: translate(-50%, -50%) translate(-36px,0); }
+  .c9  { transform: translate(-50%, -50%) translate(36px,0); }
+  .c10 { transform: translate(-50%, -50%) translate(-36px,-26px); }
+  .c11 { transform: translate(-50%, -50%) translate(36px,-26px); }
+  .c12 { transform: translate(-50%, -50%) translate(-36px,26px); }
+  .c13 { transform: translate(-50%, -50%) translate(36px,26px); }
+
+  /* Striker glow */
+  .ring {
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    border: 4px solid rgba(255,140,0,0.85);
+    position: absolute;
+    top: 50%;
+    right: 60px;
+    transform: translateY(-50%);
+    box-shadow: 0 0 30px rgba(255,140,0,1);
+  }
+
+  /* Striker */
+  .striker {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    position: absolute;
+    top: 50%;
+    right: 82px;
+    transform: translateY(-50%);
+    background: radial-gradient(circle at 30% 30%, #ffb6ff 0, #7b2cff 40%, #2b004f 100%);
+    border: 3px solid #ffffff;
+    box-shadow:
+      0 0 10px rgba(255,140,0,0.9),
+      0 0 20px rgba(255,140,0,0.7);
+  }
+</style>
+</head>
+
+<body>
+<div class="frame">
+  <div class="board">
+
+    <!-- Pockets -->
+    <div class="pocket tl"></div>
+    <div class="pocket tr"></div>
+    <div class="pocket bl"></div>
+    <div class="pocket br"></div>
+
+    <!-- Center lines -->
+    <div class="line-h"></div>
+    <div class="line-v"></div>
+
+    <!-- Marks -->
+    <div class="mark top"></div>
+    <div class="mark bottom"></div>
+    <div class="mark left"></div>
+    <div class="mark right"></div>
+
+    <!-- Center + coins -->
+    <div class="center">
+      <div class="coin red c1"></div>
+
+      <div class="coin white c2"></div>
+      <div class="coin white c3"></div>
+      <div class="coin white c4"></div>
+      <div class="coin white c5"></div>
+      <div class="coin white c6"></div>
+      <div class="coin white c7"></div>
+
+      <div class="coin black c8"></div>
+      <div class="coin black c9"></div>
+      <div class="coin black c10"></div>
+      <div class="coin black c11"></div>
+      <div class="coin black c12"></div>
+      <div class="coin black c13"></div>
+    </div>
+
+    <!-- Striker -->
+    <div class="ring"></div>
+    <div class="striker"></div>
+
+  </div>
+</div>
+</body>
+</html>
