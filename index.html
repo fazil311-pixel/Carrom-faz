@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Carrom Pro: Stable Edition</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <style>
+        body { margin: 0; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; touch-action: none; font-family: sans-serif; }
+        #scoreboard { display: flex; justify-content: space-around; width: 90%; background: #1a1a1a; padding: 10px; border-radius: 10px; margin-bottom: 10px; color: white; border: 1px solid #444; }
+        .count { display: block; font-size: 18px; font-weight: bold; color: #ffca28; }
+        #board-container { position: relative; width: 92vw; height: 92vw; max-width: 480px; background: #3e2723; border: 12px solid #2b1d14; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        #surface { width: 100%; height: 100%; position: relative; background: radial-gradient(circle, #e3c192 20%, #c19a6b 100%); overflow: hidden; }
+        .pocket { position: absolute; width: 14%; height: 14%; background: #000; border-radius: 50%; z-index: 5; }
+        .tl { top: 1%; left: 1%; } .tr { top: 1%; right: 1%; } .bl { bottom: 1%; left: 1%; } .br { bottom: 1%; right: 1%; }
+        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; }
+        #ui { width: 90%; margin-top: 15px; }
+        input[type=range] { width: 100%; height: 40px; accent-color: #ffca28; }
+    </style>
+</head>
+<body>
+    <div id="scoreboard">
+        <div>WHITE <span id="whiteScore" class="count">0</span></div>
+        <div>BLACK <span id="blackScore" class="count">0</span></div>
+        <div>QUEEN <span id="queenScore" class="count">0</span></div>
+    </div>
+    <div id="board-container">
+        <div id="surface">
+            <div class="pocket tl"></div><div class="pocket tr"></div>
+            <div class="pocket bl"></div><div class="pocket br"></div>
+            <canvas id="carromCanvas"></canvas>
+        </div>
+    </div>
+    <div id="ui"><input type="range" id="strikerSlider" min="80" max="520" value="300"></div>
+
+    <script>
+        const { Engine, Render, Runner, Bodies, Composite, Vector, Events, Body } = Matter;
+        const engine = Engine.create(); 
+        engine.gravity.y = 0;
+        engine.positionIterations = 40; 
+
+        const canvas = document.getElementById('carromCanvas');
+        const ctx = canvas.getContext('2d');
+        const render = Render.create({ canvas, engine, options: { width: 600, height: 600, wireframes: false, background: 'transparent' } });
+
+        const striker = Bodies.circle(300, 480, 28, { 
+            label: 'striker', frictionAir: 0.045, restitution: 0.5, density: 0.1,
+            render: { fillStyle: '#6a1b9a', strokeStyle: '#ffeb3b', lineWidth: 4 } 
+        });
+
+        const coins = [];
+        // Queen
+        coins.push(Bodies.circle(300, 300, 20, { label: 'queen', render: { fillStyle: '#d32f2f' } }));
+        // Inner Circle
+        for(let i=0; i<6; i++) {
+            const a = (i * 60) * (Math.PI / 180);
+            coins.push(Bodies.circle(300 + Math.cos(a)*42, 300 + Math.sin(a)*42, 20, { label: i%2===0 ? 'white' : 'black', render: { fillStyle: i%2===0 ? '#fff' : '#222' } }));
+        }
+        // Outer Circle
+        for(let i=0; i<12; i++){
+            const a = (i * 30) * (Math.PI / 180);
+            let type = (i===0 || i===1 || i===4 || i===5 || i===8 || i===9) ? 'black' : 'white';
+            coins.push(Bodies.circle(300 + Math.cos(a)*85, 300 + Math.sin(a)*85, 20, { label: type, render: { fillStyle: type === 'white' ? '#fff' : '#222' } }));
+        }
+
+        const pocketLocs = [{x:40,y:40},{x:560,y:40},{x:40,y:560},{x:560,y:560}];
+        Composite.add(engine.world, [striker, ...coins]);
+
+        let canShoot = true, startPos = null, currentTouch = null;
+        const slider = document.getElementById('strikerSlider');
+
+        slider.oninput = () => { if(canShoot) Body.setPosition(striker, { x: parseInt(slider.value), y: 480 }); };
+        
+        canvas.ontouchstart = (e) => {
+            if(!canShoot) return;
+            const rect = canvas.getBoundingClientRect();
+            startPos = { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+        };
+
+        canvas.ontouchmove = (e) => {
+            if(!startPos) return;
+            const rect = canvas.getBoundingClientRect();
+            currentTouch = { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+        };
+        
+        window.ontouchend = () => {
+            if(canShoot && startPos && currentTouch) {
+                const dx = (startPos.x - currentTouch.x) * 0.007;
+                const dy = (startPos.y - currentTouch.y) * 0.007;
+                Body.applyForce(striker, striker.position, { x: dx, y: dy });
+                canShoot = false;
+            }
+            startPos = null; currentTouch = null;
+        };
+
+        Events.on(render, 'afterRender', () => {
+            ctx.strokeStyle = "rgba(0,0,0,0.2)"; ctx.lineWidth = 2;
+            ctx.strokeRect(100, 100, 400, 400); // Visual board lines
+            ctx.beginPath(); ctx.arc(300, 300, 115, 0, Math.PI*2); ctx.stroke();
+
+            if (canShoot && startPos && currentTouch) {
+                const dx = startPos.x - currentTouch.x, dy = startPos.y - currentTouch.y;
+                ctx.beginPath(); ctx.setLineDash([5, 5]); ctx.moveTo(striker.position.x, striker.position.y);
+                ctx.lineTo(striker.position.x + (dx * 6), striker.position.y + (dy * 6));
+                ctx.strokeStyle = "#ffeb3b"; ctx.stroke(); ctx.setLineDash([]);
+            }
+        });
+
+        Events.on(engine, 'afterUpdate', () => {
+            // Only check for pocketing if objects are moving
+            coins.forEach((c, i) => {
+                if (c.speed > 0.1) {
+                    pocketLocs.forEach(p => {
+                        if (Vector.magnitude(Vector.sub(c.position, p)) < 35) {
+                            document.getElementById(c.label + 'Score').innerText = parseInt(document.getElementById(c.label + 'Score').innerText) + 1;
+                            Composite.remove(engine.world, c);
+                            coins.splice(i, 1);
+                        }
+                    });
+                }
+            });
+
+            if (!canShoot && striker.speed < 0.2 && coins.every(c => c.speed < 0.2)) {
+                Body.setPosition(striker, { x: parseInt(slider.value), y: 480 });
+                Body.setVelocity(striker, { x: 0, y: 0 });
+                canShoot = true;
+            }
+        });
+
+        Runner.run(Runner.create(), engine);
+        Render.run(render);
+    </script>
+</body>
+</html>
